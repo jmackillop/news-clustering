@@ -65,5 +65,10 @@ for t in article_texts:
 # Step 2a: Named entity recognition
 import spacy
 nlp = spacy.load("en_core_web_sm")
+all_entities = []
 for a in article_texts:
     doc = nlp(a)
+    article_entities = set()
+    for ent in doc.ents:
+        article_entities.add(ent.text)  
+    all_entities.append(article_entities)
