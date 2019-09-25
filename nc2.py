@@ -43,7 +43,6 @@ for end in reuters_link_endings:
 
 links = g_links+nyt_links+bbc_links+reuters_links
 
-
 #  NOTE: NEWSPAPER3K IS BUGGY for .build, so had to use regex as above to pull in links
 
 # Step 2: Article preprocessing
@@ -56,19 +55,19 @@ for link in links:
     a.download()
     a.parse()
     article_texts.append(a.text)
-# Lots of \n\n in the article texts for new lines - we remove these here
-for t in article_texts:
-    line_of_text = re.findall(r'[^\n\n]+', t) #list of strings between each \n\n
-    separator=' '
-    t = separator.join(line_of_text) #for each article, change all instances of \n\n for a space
+# for t in article_texts:
+#     print(t,'\n\n\n\n\n')
 
 # Step 2a: Named entity recognition
 import spacy
 nlp = spacy.load("en_core_web_sm")
 all_entities = []
-for a in article_texts:
-    doc = nlp(a)
+for t in article_texts:
+    doc = nlp(t)
     article_entities = set()
     for ent in doc.ents:
         article_entities.add(ent.text)  
     all_entities.append(article_entities)
+# print(all_entities[10])
+
+# Step 2b: tf-idf vectorizer
