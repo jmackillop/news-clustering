@@ -61,13 +61,54 @@ for link in links:
 # Step 2a: Named entity recognition
 import spacy
 nlp = spacy.load("en_core_web_sm")
-all_entities = []
+all_entities_listol = [] #list of lists
 for t in article_texts:
     doc = nlp(t)
     article_entities = set()
     for ent in doc.ents:
         article_entities.add(ent.text)  
-    all_entities.append(article_entities)
-# print(all_entities[10])
+    all_entities_listol.append(article_entities)
+# print(all_entities_listol[10])
+# Note that there is often several entities that are effectively the same 
+# e.g. Boris Johnson, the prime minister, Mr.Johnson
+
 
 # Step 2b: tf-idf vectorizer
+# Aim to have, for each article, a size n vector where n = #(all named entities)
+# Each element of the vector corresponds to the tf-idf value for a particular named entity
+
+# Vocabulary is all the named entities
+vocab = set()
+for article_entities in all_entities_listol:
+    for entity in article_entities:
+        vocab.add(entity)
+#Need vocab to be in dict form for CountVectorizer, with keys as terms and values as indices
+vocab_dict={}
+i=0
+for ent in vocab:
+    vocab_dict[ent]=i
+    i+=1
+
+# To develop the corpus, we use 10,000 recent reuters world news articles from the archives
+# this is several months worth of articles
+corpus_link_endings=[]
+for i in range(100,1101):
+    rr = requests.get('https://uk.reuters.com/news/archive/worldnews?view=page&page='+str(i))
+    links = re.findall(r'<a href="(/article/.+?)"', rr.text)
+    for j in range(10): #to remove extraneous links (note 10 articles per page)
+        corpus_link_endings.append(links[1+2*j])
+corpus_links=[]
+for end in corpus_link_endings:
+    corpus_links.append('https://uk.reuters.com'+end)
+# Extract contents of article from url using newspaper3k
+corpus_texts = []
+from newspaper import Article
+for link in corpus_links:
+    a = Article(link)
+    a.download()
+    a.parse()
+    corpus_texts.append(a.text)
+
+
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer(vocabulary=vocab_dict, ngram_range=(1,3)) #checks phrases with 1-3 tokens
