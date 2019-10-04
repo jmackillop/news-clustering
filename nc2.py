@@ -91,24 +91,8 @@ for ent in vocab:
 
 # To develop the corpus, we use 10,000 recent reuters world news articles from the archives
 # this is several months worth of articles
-corpus_link_endings=[]
-for i in range(100,1101):
-    rr = requests.get('https://uk.reuters.com/news/archive/worldnews?view=page&page='+str(i))
-    links = re.findall(r'<a href="(/article/.+?)"', rr.text)
-    for j in range(10): #to remove extraneous links (note 10 articles per page)
-        corpus_link_endings.append(links[1+2*j])
-corpus_links=[]
-for end in corpus_link_endings:
-    corpus_links.append('https://uk.reuters.com'+end)
-# Extract contents of article from url using newspaper3k
-corpus_texts = []
-from newspaper import Article
-for link in corpus_links:
-    a = Article(link)
-    a.download()
-    a.parse()
-    corpus_texts.append(a.text)
-
+# See reuters-corpus.py for the implementation
+fcorpus = open('reuters-corpus-10k-text.txt', 'rU') #the corpus
 
 from sklearn.feature_extraction.text import CountVectorizer
 vectorizer = CountVectorizer(vocabulary=vocab_dict, ngram_range=(1,3)) #checks phrases with 1-3 tokens
