@@ -46,51 +46,52 @@ for t in article_texts:
 # Each element of the vector corresponds to the tf-idf value for a particular named entity
 
 # Step 3a: Vocab and corpus
-# Vocabulary is all the named entities
-vocab = set()
+# Vocab is all the named entities
+vocab = []
 for article_entities in all_entities_listol:
     for entity in article_entities:
-        vocab.add(entity)
-# Need vocab to be in dict form for CountVectorizer, with keys as terms and values as indices
-vocab_dict={}
-i=0
-for ent in vocab:
-    vocab_dict[ent]=i
-    i+=1
+        if entity.lower() not in vocab:
+            vocab.append(entity.lower()) #lowercase for CountVectorizer
 
-# To develop the corpus, we use 10,000 recent reuters world news articles from the archives
-# this is several months worth of articles
-# See reuters-corpus.py for the implementation
-f = open('reuters-corpus-10k-text.txt', 'r') #the corpus
+# See reuters-corpus.py for the implementation of getting corpus
+f = open('reuters-corpus-10k-text.txt', 'r')
 docs = re.split(r'\n{4}',f.read()) #\n\n\n\n splits the articles in the corpus file f
 docs = docs[:-1] #remove final empty string
 
-# Step 3b: Compute idf values
-# Use corpus to find the inverse document frequency(idf)
 
+# Step 3b: Compute idf values (using corpus)
 # First get counts in corpus of vocab words/phrases
 from sklearn.feature_extraction.text import CountVectorizer
-# Set vocab and limit to phrases of 1-4 tokens, then get document-term matrix
-vectorizer = CountVectorizer(vocabulary=vocab_dict, ngram_range=(1,10))
-word_count_vector = vectorizer.transform(docs)
-# word_count_vector is a sparse matrix with (a row is a line in corpus) and (a column is a word in vocab)
-# print(word_count_vector.shape) shows corpus is 10k articles, vocab ~1k phrases
-
+# Set vocab and limit to phrases of 1-5 tokens, then get document-term matrix
+cv = CountVectorizer(vocabulary=vocab, ngram_range=(1,5))
+corpus_vocab_count_matrix = cv.transform(docs)
+# N.B.: Vocab is ONLY named entities from original ~50 articles
+# corpus_vocab_count_matrix is sparse matrix, row=(article in corpus) and column=(word in vocab)
+# print(corpus_vocab_count_matrix.shape) shows corpus is 10k articles, vocab ~1k phrases
 from sklearn.feature_extraction.text import TfidfTransformer
 tfidf_transformer = TfidfTransformer(smooth_idf=True, use_idf=True)
-tfidf_transformer.fit(word_count_vector)
-# to see idf values, put in data frame
-# df_idf = pd.DataFrame(tfidf_transformer.idf_, index = vectorizer.get_feature_names(), columns = ['idf-weights'])
+tfidf_transformer.fit(corpus_vocab_count_matrix)
+# #to see idf values, put in data frame
+# df_idf = (pd.DataFrame(tfidf_transformer.idf_, 
+# index = cv.get_feature_names(), columns = ['idf-weights']))
 # df_idf = df_idf.sort_values(by=['idf-weights'])
 # print(df_idf.head(10)) #shows idf weights of most common in the corpus of the ~1k 'vocab' 
 
-# Step 3c: Compute tfidf values for each article
-articles_word_count_vector = vectorizer.transform(article_texts[:2])
-print(articles_word_count_vector)
-tfidf_vector = tfidf_transformer.transform(articles_word_count_vector)
 
-# first_article_vector = tfidf_vector[0]
-# df = pd.DataFrame(first_article_vector.T.todense(), index = vectorizer.get_feature_names(), columns=['tfidf'])
+# Step 3c: Compute tfidf values for each article
+articles_vocab_count_matrix = cv.transform(article_texts)
+tfidf_vector = tfidf_transformer.transform(articles_vocab_count_matrix)
+
+# # See tfidf for first article
+# article_vector_1 = tfidf_vector[0]
+# df = (pd.DataFrame(article_vector_1.T.todense(), index = cv.get_feature_names(), columns=['tfidf']))
 # df = df.sort_values(by=['tfidf'], ascending=False)
 # print(df.head(20))
 # print(all_entities_listol[0])
+
+print(tfidf_vector[0])
+print(tfidf_vector.shape)
+print(tfidf_vector.todense()[0])#tfidf values for vocabs from 0 to ~1k
+
+
+'''TO DO: ?alphabetise vocab by sorting all_entities_listol?'''
