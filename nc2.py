@@ -8,6 +8,7 @@ import sys
 import re
 import spacy
 import pandas as pd
+import numpy as np
 
 # Step 1: Get links and contents
 # Use approx top 10 or so from headline section on homepages of
@@ -18,11 +19,13 @@ i=1
 while True:
     try:
         f = open('article-text-%d' %i, 'r')
-        article_texts.append(f.read())
+        article_texts.append(re.sub("’","'", f.read()))#fix apostrophes
         f.close()
         i+=1
     except:
         break
+
+
 
 
 
@@ -31,12 +34,17 @@ nlp = spacy.load("en_core_web_sm")
 all_entities_listol = [] #list of lists
 for t in article_texts:
     doc = nlp(t)
-    article_entities = set()
+    article_entities = []
     for ent in doc.ents:
-        article_entities.add(ent.text)  
-    all_entities_listol.append(article_entities)
+        if (ent.text.lower() not in article_entities) and (len(ent.text.lower())>1):
+            article_entities.append(ent.text.lower())  
+    all_entities_listol.append(sorted(article_entities))
 # Note that there are often several entities that are effectively the same 
 # e.g. Boris Johnson, the prime minister, Mr.Johnson
+# group these with e.g. word2vec?
+
+
+
 
 
 
@@ -50,8 +58,9 @@ for t in article_texts:
 vocab = []
 for article_entities in all_entities_listol:
     for entity in article_entities:
-        if entity.lower() not in vocab:
+        if (entity.lower() not in vocab):
             vocab.append(entity.lower()) #lowercase for CountVectorizer
+vocab=sorted(vocab)
 
 # See reuters-corpus.py for the implementation of getting corpus
 f = open('reuters-corpus-10k-text.txt', 'r')
@@ -62,9 +71,9 @@ docs = docs[:-1] #remove final empty string
 # Step 3b: Compute idf values (using corpus)
 # First get counts in corpus of vocab words/phrases
 from sklearn.feature_extraction.text import CountVectorizer
-# Set vocab and limit to phrases of 1-5 tokens, then get document-term matrix
-cv = CountVectorizer(vocabulary=vocab, ngram_range=(1,5))
-corpus_vocab_count_matrix = cv.transform(docs)
+# Set vocab and limit to phrases of 1-4 tokens, then get document-term matrix
+cv1 = CountVectorizer(vocabulary=vocab, analyzer = 'word', ngram_range=(1,4))
+corpus_vocab_count_matrix = cv1.transform(docs)
 # N.B.: Vocab is ONLY named entities from original ~50 articles
 # corpus_vocab_count_matrix is sparse matrix, row=(article in corpus) and column=(word in vocab)
 # print(corpus_vocab_count_matrix.shape) shows corpus is 10k articles, vocab ~1k phrases
@@ -72,26 +81,79 @@ from sklearn.feature_extraction.text import TfidfTransformer
 tfidf_transformer = TfidfTransformer(smooth_idf=True, use_idf=True)
 tfidf_transformer.fit(corpus_vocab_count_matrix)
 # #to see idf values, put in data frame
-# df_idf = (pd.DataFrame(tfidf_transformer.idf_, 
-# index = cv.get_feature_names(), columns = ['idf-weights']))
+# df_idf = pd.DataFrame(tfidf_transformer.idf_, index=cv.get_feature_names(), columns=['idf-weights'])
 # df_idf = df_idf.sort_values(by=['idf-weights'])
 # print(df_idf.head(10)) #shows idf weights of most common in the corpus of the ~1k 'vocab' 
 
 
 # Step 3c: Compute tfidf values for each article
-articles_vocab_count_matrix = cv.transform(article_texts)
-tfidf_vector = tfidf_transformer.transform(articles_vocab_count_matrix)
 
-# # See tfidf for first article
-# article_vector_1 = tfidf_vector[0]
-# df = (pd.DataFrame(article_vector_1.T.todense(), index = cv.get_feature_names(), columns=['tfidf']))
-# df = df.sort_values(by=['tfidf'], ascending=False)
-# print(df.head(20))
-# print(all_entities_listol[0])
+# analyzer='word' runs faster, but issues with vocab with punctuation e.g. O'Neill
+#   BUT 'char' matches e.g. 'UN' and 'US' incorrectly in words like 'under' and 'useful'
+# cv2 = CountVectorizer(vocabulary=vocab, analyzer = 'char', ngram_range=(1,30))
 
-print(tfidf_vector[0])
-print(tfidf_vector.shape)
-print(tfidf_vector.todense()[0])#tfidf values for vocabs from 0 to ~1k
+articles_vocab_count_matrix = cv1.transform(article_texts)
+#avcm = np.asarray(articles_vocab_count_matrix.todense())
+tfidf_matrix = tfidf_transformer.transform(articles_vocab_count_matrix)
+tfidf_array = np.asarray(tfidf_matrix.todense()) #NB change from numpy matrix to array
+
+## See tfidf for first article
+# df = pd.DataFrame(tfidf_array[0], index=cv1.get_feature_names(), columns=['tfidf'])
+# df_descending = df.sort_values(by=['tfidf'], ascending=False)
+# print(df_descending.head(5))
+
+# # See top vocab for each article
+# most_important_vocabs=[]
+# for row in tfidf_array:
+#     most_important_vocab = most_important_vocabs.append(vocab[np.where(row==max(row))[0][0]])
+# print(most_important_vocabs)
 
 
-'''TO DO: ?alphabetise vocab by sorting all_entities_listol?'''
+# NB: some of vocab are NOT in entities for the article, but still have tfidf>0
+#   ---named entity recognition isn't perfect...
+# dfindices = [df.index[i] for i in range(len(vocab)) if df.iloc[i]['tfidf']>0]
+# print('tfidf!=0 but not in entity list', [w for w in dfindices if w not in all_entities_listol[0]])
+# print('in ent list but tfidf=0', [w for w in all_entities_listol[0] if w not in dfindices])
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Step 4: Clustering
+# We now have a 'description' of each article with its tfidf vector
+# Want to put together similar news articles
+#   Want to predict a category, with an unknown number of categories, with unlabelled data
+#   -DBSCAN is a good choice here
+
+# Compare each of the ~50 tfidf vectors
+#   -high-dimensional so use cosine similarity (not L2) to help avoid curse of dimensionality
+from sklearn.metrics import pairwise_distances
+from scipy.spatial.distance import cosine
+distance_array = pairwise_distances(tfidf_array, metric='cosine')
+# print(distance_array[12])
+
+from sklearn.cluster import DBSCAN
+#around .6 or .65 seems to work well
+clustering = DBSCAN(eps=0.6, min_samples=2, metric='precomputed').fit(distance_array)
+for i in range(max(clustering.labels_)):
+    print(np.where(clustering.labels_==i)[0])
+
+### Performs very poorly
+# from sklearn.cluster import SpectralClustering
+# clustering = SpectralClustering(n_clusters=20, affinity = 'precomputed').fit(similarity_array)
+# for i in range(20):
+#     print(np.where(clustering.labels_==i))
+
+
+'''
+TO DO: combine similar named entities - clustering with word2vec?
+        Named entity recognition doesn't get everything(see step3c, line ~100)...tuning?
+'''
