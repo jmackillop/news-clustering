@@ -14,28 +14,27 @@ for i in range(100,1101):
 corpus_links=[]
 for end in corpus_link_endings:
     corpus_links.append('https://uk.reuters.com'+end)
-# for link in corpus_links:
-#     print(link,'\n')
+#Save links to file
 f = open('reuters-corpus-10k-links.txt','w+')
 for link in corpus_links:
     f.write(link+'\n')
 f.close()
 
-# # Extract contents of article from url using newspaper3k
-# corpus_texts = []
-# from newspaper import Article
-# for link in corpus_links:
-#     a = Article(link)
-#     a.download()
-#     a.parse()
-#     corpus_texts.append(a.text)
-# # i=0
-# # for text in corpus_texts:
-# #     print(text,i)
-# #     i+=1
-
-# # Write corpus-texts to a file
-# f = open('reuters-corpus-10k.txt','w+')
+# Extract contents of article from url using newspaper3k
+corpus_texts = []
+from newspaper import Article
+for link in corpus_links:
+    a = Article(link)
+    a.download()
+    a.parse()
+    corpus_texts.append(a.text)
+# i=0
 # for text in corpus_texts:
-#     f.write(text+'\n\n\n\n\n\n\n')
-# f.close()
+#     print(text,i)
+#     i+=1
+
+# Write corpus-texts to a file
+f = open('reuters-corpus-10k.txt','w+')
+for text in corpus_texts:
+    f.write(text+'\n\n\n\n\n\n\n')
+f.close()
