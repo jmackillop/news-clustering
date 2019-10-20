@@ -43,7 +43,6 @@ links = g_links+nyt_links+bbc_links+reuters_links
 article_texts = []
 from newspaper import Article
 for link in links:
-    quoted_link = "'"+link+"'"
     a = Article(link)
     a.download()
     a.parse()
