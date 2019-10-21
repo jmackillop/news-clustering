@@ -81,9 +81,10 @@ from sklearn.feature_extraction.text import TfidfTransformer
 tfidf_transformer = TfidfTransformer(smooth_idf=True, use_idf=True)
 tfidf_transformer.fit(corpus_vocab_count_matrix)
 # #to see idf values, put in data frame
-# df_idf = pd.DataFrame(tfidf_transformer.idf_, index=cv.get_feature_names(), columns=['idf-weights'])
+# df_idf = pd.DataFrame(tfidf_transformer.idf_, index=cv1.get_feature_names(), columns=['idf-weights'])
 # df_idf = df_idf.sort_values(by=['idf-weights'])
 # print(df_idf.head(10)) #shows idf weights of most common in the corpus of the ~1k 'vocab' 
+
 
 
 # Step 3c: Compute tfidf values for each article
@@ -97,10 +98,11 @@ articles_vocab_count_matrix = cv1.transform(article_texts)
 tfidf_matrix = tfidf_transformer.transform(articles_vocab_count_matrix)
 tfidf_array = np.asarray(tfidf_matrix.todense()) #NB change from numpy matrix to array
 
-## See tfidf for first article
-# df = pd.DataFrame(tfidf_array[0], index=cv1.get_feature_names(), columns=['tfidf'])
-# df_descending = df.sort_values(by=['tfidf'], ascending=False)
-# print(df_descending.head(5))
+# See tfidf for first article
+df = pd.DataFrame(tfidf_array[0], index=cv1.get_feature_names(), columns=['tfidf'])
+df_descending = df.sort_values(by=['tfidf'], ascending=False)
+print(df_descending.head(5))
+sys.exit()
 
 # # See top vocab for each article
 # most_important_vocabs=[]
@@ -108,19 +110,11 @@ tfidf_array = np.asarray(tfidf_matrix.todense()) #NB change from numpy matrix to
 #     most_important_vocab = most_important_vocabs.append(vocab[np.where(row==max(row))[0][0]])
 # print(most_important_vocabs)
 
-
 # NB: some of vocab are NOT in entities for the article, but still have tfidf>0
 #   ---named entity recognition isn't perfect...
 # dfindices = [df.index[i] for i in range(len(vocab)) if df.iloc[i]['tfidf']>0]
 # print('tfidf!=0 but not in entity list', [w for w in dfindices if w not in all_entities_listol[0]])
 # print('in ent list but tfidf=0', [w for w in all_entities_listol[0] if w not in dfindices])
-
-
-
-
-
-
-
 
 
 
@@ -151,7 +145,6 @@ for i in range(max(clustering.labels_)):
 # clustering = SpectralClustering(n_clusters=20, affinity = 'precomputed').fit(similarity_array)
 # for i in range(20):
 #     print(np.where(clustering.labels_==i))
-
 
 '''
 TO DO: combine similar named entities - clustering with word2vec?
